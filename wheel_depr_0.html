@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pokémon Type Wheel</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: white;
+      text-align: center;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 20px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .wheel-container {
+      position: relative;
+      width: 700px;
+      height: 700px;
+    }
+    .type-icon {
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .type-icon:hover img {
+      transform: scale(1.1);
+    }
+    .type-icon.selected img {
+      filter: drop-shadow(0px 0px 5px white);
+    }
+    .connections path {
+      stroke: rgba(100, 100, 100, 0.3);
+      stroke-width: 2;
+      transition: stroke 0.3s, opacity 0.3s;
+      /* We no longer need marker-mid. */
+      marker-end: none;
+    }
+    .super-effective {
+      stroke: #ff5555 !important;
+      stroke-width: 3;
+      marker-end: url(#arrow-red) !important;
+    }
+    .not-very-effective {
+      stroke: #5555ff !important;
+      stroke-width: 3;
+      marker-end: url(#arrow-blue) !important;
+    }
+    .immune {
+      stroke: white !important;
+      stroke-width: 3;
+      marker-end: url(#arrow-white) !important;
+    }
+    text {
+      fill: white;
+      font-size: 12px;
+      font-weight: bold;
+      text-anchor: middle;
+      pointer-events: none;
+    }
+    .tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      display: none;
+      pointer-events: none;
+      max-width: 250px;
+      text-align: left;
+      z-index: 100;
+    }
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      width: 250px;
+    }
+    .legend {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      gap: 10px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .legend-color {
+      width: 20px;
+      height: 4px;
+      border-radius: 2px;
+    }
+    .instructions {
+      max-width: 250px;
+      margin: 0 0 20px;
+      font-size: 14px;
+      opacity: 0.8;
+      text-align: left;
+    }
+    .reset-button {
+      background: #333;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 10px;
+      align-self: center;
+    }
+    .reset-button:hover {
+      background: #444;
+    }
+  </style>
+</head>
+<body>
+  <h1>Pokémon Type Wheel</h1>
+  <div class="container">
+    <div class="side-panel">
+      <div class="instructions">
+        Click on type icons to show their relationships. Click again to deselect a type.
+        Hover over any type for more information.
+      </div>
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-color" style="background: #ff5555;"></div>
+          <span>Super Effective (2x damage)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #5555ff;"></div>
+          <span>Not Very Effective (0.5x damage)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: white;"></div>
+          <span>Immune (0x damage)</span>
+        </div>
+      </div>
+      <button class="reset-button" id="resetButton">Reset Selection</button>
+    </div>
+    <svg width="700" height="700" class="wheel-container" id="wheel">
+      <!-- Marker definitions for arrows -->
+      <defs>
+        <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="5" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L9,3 z" fill="#ff5555"/>
+        </marker>
+        <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="5" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L9,3 z" fill="#5555ff"/>
+        </marker>
+        <marker id="arrow-white" markerWidth="10" markerHeight="10" refX="5" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L9,3 z" fill="white"/>
+        </marker>
+      </defs>
+      <g class="connections" id="connections"></g>
+      <g class="types" id="types"></g>
+    </svg>
+    <div id="tooltip" class="tooltip"></div>
+  </div>
+  
+  <script>
+    const types = [
+      'Normal', 'Fire', 'Water', 'Electric', 'Grass', 'Ice', 'Fighting', 'Poison', 
+      'Ground', 'Flying', 'Psychic', 'Bug', 'Rock', 'Ghost', 'Dragon', 'Dark', 'Steel', 'Fairy'
+    ];
+    
+    const typeDescriptions = {
+      Normal: "Basic type with few strengths but only one immunity. Weak to Fighting.",
+      Fire: "Powerful offensive type that's super effective against Bug, Grass, Ice, and Steel. Vulnerable to Ground, Rock, and Water.",
+      Water: "Well-balanced type with few weaknesses. Strong against Fire, Ground, and Rock.",
+      Electric: "Fast attackers with a key Ground weakness. Strong against Flying and Water types.",
+      Grass: "Has many weaknesses but useful resistances. Strong against Ground, Rock, and Water.",
+      Ice: "Great offensively but frail defensively. Super effective against Dragon, Flying, Grass, and Ground.",
+      Fighting: "Strong physical attackers. Effective against Dark, Ice, Normal, Rock, and Steel.",
+      Poison: "Tactical type with Fairy advantage. Weak to Ground and Psychic.",
+      Ground: "Immune to Electric and strong against five types. Weak to Grass, Ice, and Water.",
+      Flying: "Immune to Ground moves. Effective against Bug, Fighting, and Grass.",
+      Psychic: "Powerful special attackers. Weak to Bug, Dark, and Ghost.",
+      Bug: "Common early-game type. Effective against Dark, Grass, and Psychic.",
+      Rock: "Defensively strong but has many weaknesses. Strong against Bug, Fire, Flying, and Ice.",
+      Ghost: "Unique with two immunities. Strong against Ghost and Psychic.",
+      Dragon: "Rare and powerful. Only weak to Dragon, Ice, and Fairy.",
+      Dark: "Immune to Psychic. Strong against Ghost and Psychic.",
+      Steel: "The most resistances of any type. Weak to Fighting, Fire, and Ground.",
+      Fairy: "Immune to Dragon. Strong against Dark, Dragon, and Fighting."
+    };
+    
+    const colors = {
+      Normal: '#A8A878', Fire: '#F08030', Water: '#6890F0', Electric: '#F8D030', 
+      Grass: '#78C850', Ice: '#98D8D8', Fighting: '#C03028', Poison: '#A040A0', 
+      Ground: '#E0C068', Flying: '#A890F0', Psychic: '#F85888', Bug: '#A8B820', 
+      Rock: '#B8A038', Ghost: '#705898', Dragon: '#7038F8', Dark: '#705848', 
+      Steel: '#B8B8D0', Fairy: '#EE99AC'
+    };
+    
+    const effectiveness = {
+      Normal: { Rock: 0.5, Ghost: 0, Steel: 0.5 },
+      Fire: { Fire: 0.5, Water: 0.5, Grass: 2, Ice: 2, Bug: 2, Rock: 0.5, Dragon: 0.5, Steel: 2 },
+      Water: { Fire: 2, Water: 0.5, Grass: 0.5, Ground: 2, Rock: 2, Dragon: 0.5 },
+      Electric: { Water: 2, Electric: 0.5, Grass: 0.5, Ground: 0, Flying: 2, Dragon: 0.5 },
+      Grass: { Fire: 0.5, Water: 2, Grass: 0.5, Poison: 0.5, Ground: 2, Flying: 0.5, Bug: 0.5, Rock: 2, Dragon: 0.5, Steel: 0.5 },
+      Ice: { Fire: 0.5, Water: 0.5, Grass: 2, Ice: 0.5, Ground: 2, Flying: 2, Dragon: 2, Steel: 0.5 },
+      Fighting: { Normal: 2, Ice: 2, Rock: 2, Dark: 2, Steel: 2, Poison: 0.5, Flying: 0.5, Psychic: 0.5, Bug: 0.5, Ghost: 0, Fairy: 0.5 },
+      Poison: { Grass: 2, Poison: 0.5, Ground: 0.5, Rock: 0.5, Ghost: 0.5, Steel: 0, Fairy: 2 },
+      Ground: { Fire: 2, Electric: 2, Grass: 0.5, Poison: 2, Flying: 0, Bug: 0.5, Rock: 2, Steel: 2 },
+      Flying: { Electric: 0.5, Grass: 2, Fighting: 2, Bug: 2, Rock: 0.5, Steel: 0.5 },
+      Psychic: { Fighting: 2, Poison: 2, Psychic: 0.5, Dark: 0, Steel: 0.5 },
+      Bug: { Fire: 0.5, Grass: 2, Fighting: 0.5, Poison: 0.5, Flying: 0.5, Psychic: 2, Ghost: 0.5, Dark: 2, Steel: 0.5, Fairy: 0.5 },
+      Rock: { Fire: 2, Ice: 2, Fighting: 0.5, Ground: 0.5, Flying: 2, Bug: 2, Steel: 0.5 },
+      Ghost: { Normal: 0, Psychic: 2, Ghost: 2, Dark: 0.5 },
+      Dragon: { Dragon: 2, Steel: 0.5, Fairy: 0 },
+      Dark: { Fighting: 0.5, Psychic: 2, Ghost: 2, Dark: 0.5, Fairy: 0.5 },
+      Steel: { Fire: 0.5, Water: 0.5, Electric: 0.5, Ice: 2, Rock: 2, Steel: 0.5, Fairy: 2 },
+      Fairy: { Fire: 0.5, Fighting: 2, Poison: 0.5, Dragon: 2, Dark: 2, Steel: 0.5 }
+    };
+
+    
+    const svg = document.getElementById("wheel");
+    const connectionsGroup = document.getElementById("connections");
+    const typesGroup = document.getElementById("types");
+    const tooltip = document.getElementById("tooltip");
+    const resetButton = document.getElementById("resetButton");
+    
+    const radius = 300;
+    const centerX = 350;
+    const centerY = 350;
+    const selectedTypes = new Set();
+    
+    // Create all connections first (initially faint)
+    types.forEach((sourceType, i) => {
+      const sourceAngle = (i / types.length) * 2 * Math.PI;
+      const sourceX = centerX + radius * Math.cos(sourceAngle);
+      const sourceY = centerY + radius * Math.sin(sourceAngle);
+      
+      types.forEach((targetType, j) => {
+        if (sourceType !== targetType && effectiveness[sourceType] && effectiveness[sourceType][targetType] !== undefined) {
+          const targetAngle = (j / types.length) * 2 * Math.PI;
+          const targetX = centerX + radius * Math.cos(targetAngle);
+          const targetY = centerY + radius * Math.sin(targetAngle);
+          
+          // Calculate control point for curved lines
+          const midX = (sourceX + targetX) / 2;
+          const midY = (sourceY + targetY) / 2;
+          // Pull the curve toward center slightly
+          const curveControl = 0.15;
+          const controlX = midX + (centerX - midX) * curveControl;
+          const controlY = midY + (centerY - midY) * curveControl;
+          
+          // Use a single curved path from source to target
+          const pathData = `M ${sourceX} ${sourceY} Q ${controlX} ${controlY} ${targetX} ${targetY}`;
+          
+          // Create the curved line
+          const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          line.setAttribute("d", pathData);
+          line.setAttribute("fill", "none");
+          line.setAttribute("class", `connection line-${sourceType}-${targetType}`);
+          line.setAttribute("data-source", sourceType);
+          line.setAttribute("data-target", targetType);
+          line.setAttribute("data-value", effectiveness[sourceType][targetType]);
+          
+          connectionsGroup.appendChild(line);
+        }
+      });
+    });
+    
+    // Create type icons
+    types.forEach((type, i) => {
+      const angle = (i / types.length) * 2 * Math.PI;
+      const x = centerX + radius * Math.cos(angle);
+      const y = centerY + radius * Math.sin(angle);
+      
+      const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      group.setAttribute("class", "type-icon");
+      group.setAttribute("data-type", type);
+      group.setAttribute("transform", `translate(${x}, ${y})`);
+      
+      // Create image element for type icon
+      const image = document.createElementNS("http://www.w3.org/2000/svg", "image");
+      image.setAttribute("href", `icons/${type.toLowerCase()}.png`);
+      image.setAttribute("width", "60");
+      image.setAttribute("height", "60");
+      image.setAttribute("x", "-30");
+      image.setAttribute("y", "-30");
+      image.setAttribute("preserveAspectRatio", "xMidYMid meet");
+      
+      group.appendChild(image);
+      typesGroup.appendChild(group);
+      
+      // Add event listeners for click toggling
+      group.addEventListener("click", (e) => {
+        const clickedType = e.currentTarget.getAttribute("data-type");
+        
+        if (selectedTypes.has(clickedType)) {
+          // Deselect if already selected
+          selectedTypes.delete(clickedType);
+          e.currentTarget.classList.remove("selected");
+        } else {
+          // Add to selection
+          selectedTypes.add(clickedType);
+          e.currentTarget.classList.add("selected");
+        }
+        
+        updateConnections();
+      });
+      
+      // Tooltip on hover
+      group.addEventListener("mouseenter", (e) => {
+        const hoverType = e.currentTarget.getAttribute("data-type");
+        const rect = e.currentTarget.getBoundingClientRect();
+        
+        tooltip.innerHTML = `<strong>${hoverType}</strong><br>${typeDescriptions[hoverType]}`;
+        tooltip.style.display = "block";
+        tooltip.style.left = `${rect.right + 10}px`;
+        tooltip.style.top = `${rect.top}px`;
+      });
+      
+      group.addEventListener("mouseleave", () => {
+        tooltip.style.display = "none";
+      });
+    });
+    
+    // Reset button functionality
+    resetButton.addEventListener("click", () => {
+      document.querySelectorAll(".type-icon").forEach(icon => {
+        icon.classList.remove("selected");
+      });
+      selectedTypes.clear();
+      updateConnections();
+    });
+    
+    // Function to update connection visibility and styling
+    function updateConnections() {
+      // Reset all connections to faint
+      document.querySelectorAll(".connections path").forEach(path => {
+        path.classList.remove("super-effective", "not-very-effective", "immune");
+        path.setAttribute("stroke", "rgba(100, 100, 100, 0.3)");
+        path.setAttribute("stroke-width", "2");
+        // Use marker-end consistently
+        path.removeAttribute("marker-end");
+      });
+      
+      // No selection means show all connections as faint
+      if (selectedTypes.size === 0) return;
+      
+      // Highlight relevant connections for selected types
+      selectedTypes.forEach(type => {
+        if (effectiveness[type]) {
+          Object.entries(effectiveness[type]).forEach(([targetType, multiplier]) => {
+            const connection = document.querySelector(`.line-${type}-${targetType}`);
+            if (connection) {
+              if (multiplier === 2) {
+                connection.classList.add("super-effective");
+              } else if (multiplier === 0.5) {
+                connection.classList.add("not-very-effective");
+              } else if (multiplier === 0) {
+                connection.classList.add("immune");
+              }
+            }
+          });
+        }
+        
+        // Also highlight connections where the selected type is the target
+        types.forEach(sourceType => {
+          if (effectiveness[sourceType] && effectiveness[sourceType][type] !== undefined) {
+            const connection = document.querySelector(`.line-${sourceType}-${type}`);
+            if (connection) {
+              const multiplier = effectiveness[sourceType][type];
+              if (multiplier === 2) {
+                connection.classList.add("super-effective");
+              } else if (multiplier === 0.5) {
+                connection.classList.add("not-very-effective");
+              } else if (multiplier === 0) {
+                connection.classList.add("immune");
+              }
+            }
+          }
+        });
+      });
+    }
+    
+    // Initialize with no selections
+    updateConnections();
+  </script>
+</body>
+</html>
