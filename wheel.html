@@ -29,35 +29,50 @@
     }
     .type-icon {
       cursor: pointer;
-      transition: opacity 0.2s;
+      transition: opacity 0.5s;
     }
     .type-icon:hover img {
       transform: scale(1.1);
     }
-    .type-icon.selected img {
-      filter: drop-shadow(0px 0px 5px white);
+    .type-icon.selected {
+      filter: drop-shadow(0px 0px 10px white);
+      opacity: 1;
+    }
+    .type-icon.fade {
+      opacity: 0.1;
     }
     /* Basic path styling */
     .connections path {
       fill: none;
       stroke: rgba(100, 100, 100, 0.3);
-      stroke-width: 2;
+      stroke-width: 1;
       transition: stroke 0.3s, stroke-width 0.3s;
     }
     .connections path.highlighted {
-      stroke-width: 3;
+      /* stroke-width: 3; */
+      fill: none; /* Placeholder */
     }
     .connections path.mutual-immunity.highlighted {
       stroke: white;
+      stroke-width: 2;
     }
     .connections path.one-way-immunity.highlighted {
-      stroke: #5555FF;
+      /* stroke: #5555FF; */
+      stroke-width: 30;
     }
     .connections path.advantage-2x.highlighted {
-      stroke: #FFCC00;
+      /* stroke: #FFCC00; */
+      stroke-width: 3;
     }
     .connections path.advantage-4x.highlighted {
-      stroke: #FF5555;
+      /* stroke: #FF5555; */
+      stroke-width: 15;
+    }
+    .connections path.adv {
+      stroke: green;
+    }
+    .connections path.disadv {
+      stroke: red;
     }
     /* Make marker lines invisible by default - no markers shown */
     .marker-line {
@@ -153,7 +168,7 @@
       <button class="reset-button" id="resetButton">Reset Selection</button>
     </div>
     <svg width="700" height="700" class="wheel-container" id="wheel">
-      <defs>
+      <!-- <defs>
         <marker id="arrow-advantage-4x" viewBox="0 0 10 10" refX="5" refY="5"
           markerWidth="20" markerHeight="20" orient="auto">
           <path d="M 0 0 L 10 5 L 0 10 z" fill="#FF5555"/>
@@ -166,7 +181,7 @@
           markerWidth="20" markerHeight="20" orient="auto">
           <path d="M 0 0 L 10 5 L 0 10 z" fill="#5555FF"/>
         </marker>
-      </defs>
+      </defs> -->
       <g class="connections" id="connections"></g>
       <g class="types" id="types"></g>
     </svg>
@@ -180,24 +195,24 @@
     ];
     
     const typeDescriptions = {
-      Normal: "Basic type with balanced defensive profile. Immune to Ghost. Weak to Fighting.",
-      Fire: "Offensive powerhouse effective against Bug, Grass, Ice, and Steel. Weak to Ground, Rock, and Water.",
-      Water: "Versatile type with solid defenses. Strong against Fire, Ground, and Rock. Weak to Electric and Grass.",
-      Electric: "Fast and powerful. Immune to paralysis. Strong against Flying and Water. Weak to Ground.",
-      Grass: "Good against Water types, but has many weaknesses (Bug, Fire, Flying, Ice, Poison).",
-      Ice: "Strongest offensive typing, super effective against Dragon, Flying, Grass, and Ground, but very fragile defensively.",
-      Fighting: "Physical attackers effective against Dark, Ice, Normal, Rock, and Steel. Weak to Fairy, Flying, and Psychic.",
-      Poison: "Defensive type that counters Fairy. Weak to Ground and Psychic. Immune to being poisoned.",
-      Ground: "Immune to Electric. Strong against Electric, Fire, Poison, Rock, Steel. Weak to Grass, Ice, Water.",
-      Flying: "Immune to Ground and resistant to Fighting. Effective against Bug, Fighting, and Grass. Weak to Electric, Ice, Rock.",
-      Psychic: "Strong special attackers. Effective against Fighting and Poison. Weak to Bug, Dark, and Ghost.",
-      Bug: "Early-game type with specific niches. Strong against Dark, Grass, and Psychic. Many weaknesses.",
-      Rock: "Good offensively but many defensive weaknesses. Strong against Bug, Fire, Flying, Ice.",
-      Ghost: "Immune to Normal and Fighting. Strong against Ghost and Psychic. Weak to Dark and Ghost.",
-      Dragon: "Powerful but rare. Only weak to Dragon, Ice, and Fairy types. Resists common elemental types.",
-      Dark: "Immune to Psychic. Strong against Ghost and Psychic. Weak to Bug, Fairy, and Fighting.",
-      Steel: "Defensive titan with 10 resistances and Poison immunity. Weak to Fighting, Fire, and Ground.",
-      Fairy: "Immune to Dragon. Strong against Dark, Dragon, and Fighting. Weak to Poison and Steel."
+      Normal: "Placeholder",
+      Fire: "Placeholder",
+      Water: "Placeholder",
+      Electric: "Placeholder",
+      Grass: "Placeholder",
+      Ice: "Placeholder",
+      Fighting: "Placeholder",
+      Poison: "Placeholder",
+      Ground: "Placeholder",
+      Flying: "Placeholder",
+      Psychic: "Placeholder",
+      Bug: "Placeholder",
+      Rock: "Placeholder",
+      Ghost: "Placeholder",
+      Dragon: "Placeholder",
+      Dark: "Placeholder",
+      Steel: "Placeholder",
+      Fairy: "Placeholder"
     };
     
     const effectiveness = {
@@ -231,6 +246,7 @@
     const centerX = 350;
     const centerY = 350;
     const selectedTypes = new Set();
+    const visibleTypes = new Set();
 
     // Calculate relationships (immunities, 2x advantages, 4x advantages)
     function calculateRelationships() {
@@ -275,10 +291,10 @@
             mutualImmunities[type2][type1] = true;
           } else if (type1ImmuneTotype2) {
             // One-way: type1 is immune to type2
-            oneWayImmunities[type2][type1] = true;
+            oneWayImmunities[type1][type2] = true;
           } else if (type2ImmuneTotype1) {
             // One-way: type2 is immune to type1
-            oneWayImmunities[type1][type2] = true;
+            oneWayImmunities[type2][type1] = true;
           }
         });
       });
@@ -385,7 +401,7 @@
       const controlY = midY + (centerY - midY) * curveControl;
       
       // Calculate the point at t=0.5 on the quadratic Bezier curve
-      const t = 0.5;
+      const t = 0.8;
       const midPointX = (1-t)*(1-t)*sourceX + 2*(1-t)*t*controlX + t*t*targetX;
       const midPointY = (1-t)*(1-t)*sourceY + 2*(1-t)*t*controlY + t*t*targetY;
       
@@ -398,37 +414,37 @@
       path.setAttribute("data-source", sourceType);
       path.setAttribute("data-target", targetType);
       
-      // For non-mutual immunity connections, add a separate invisible arrow marker at midpoint
-      if (connectionClass !== "mutual-immunity") {
-        // Create a small line segment at the midpoint to attach the marker
-        const markerLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      // // For non-mutual immunity connections, add a separate invisible arrow marker at midpoint
+      // if (connectionClass !== "mutual-immunity") {
+      //   // Create a small line segment at the midpoint to attach the marker
+      //   const markerLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
         
-        // Calculate the tangent direction at the midpoint
-        const dx = 2*(1-t)*(controlX-sourceX) + 2*t*(targetX-controlX);
-        const dy = 2*(1-t)*(controlY-sourceY) + 2*t*(targetY-controlY);
+      //   // Calculate the tangent direction at the midpoint
+      //   const dx = 2*(1-t)*(controlX-sourceX) + 2*t*(targetX-controlX);
+      //   const dy = 2*(1-t)*(controlY-sourceY) + 2*t*(targetY-controlY);
         
-        // Normalize the direction vector
-        const len = Math.sqrt(dx*dx + dy*dy);
-        const nx = dx/len;
-        const ny = dy/len;
+      //   // Normalize the direction vector
+      //   const len = Math.sqrt(dx*dx + dy*dy);
+      //   const nx = dx/len;
+      //   const ny = dy/len;
         
-        // Create a line long enough to display the marker but still visually minimal
-        const lineLength = 2; // Small but sufficient for marker display
-        markerLine.setAttribute("x1", midPointX - nx * lineLength);
-        markerLine.setAttribute("y1", midPointY - ny * lineLength);
-        markerLine.setAttribute("x2", midPointX + nx * lineLength);
-        markerLine.setAttribute("y2", midPointY + ny * lineLength);
+      //   // Create a line long enough to display the marker but still visually minimal
+      //   const lineLength = 2; // Small but sufficient for marker display
+      //   markerLine.setAttribute("x1", midPointX - nx * lineLength);
+      //   markerLine.setAttribute("y1", midPointY - ny * lineLength);
+      //   markerLine.setAttribute("x2", midPointX + nx * lineLength);
+      //   markerLine.setAttribute("y2", midPointY + ny * lineLength);
         
-        // Add marker-line class for CSS styling
-        markerLine.setAttribute("class", `marker-line ${connectionClass}-marker`);
-        markerLine.setAttribute("stroke", "rgba(100,100,100,0.8)"); // Give it a visible stroke for when highlighted
-        markerLine.setAttribute("stroke-width", "1");
-        markerLine.setAttribute("marker-end", `url(#arrow-${connectionClass})`);
-        markerLine.setAttribute("data-source", sourceType);
-        markerLine.setAttribute("data-target", targetType);
+      //   // Add marker-line class for CSS styling
+      //   markerLine.setAttribute("class", `marker-line ${connectionClass}-marker`);
+      //   markerLine.setAttribute("stroke", "rgba(100,100,100,0.8)"); // Give it a visible stroke for when highlighted
+      //   markerLine.setAttribute("stroke-width", "1");
+      //   markerLine.setAttribute("marker-end", `url(#arrow-${connectionClass})`);
+      //   markerLine.setAttribute("data-source", sourceType);
+      //   markerLine.setAttribute("data-target", targetType);
         
-        connectionsGroup.appendChild(markerLine);
-      }
+      //   connectionsGroup.appendChild(markerLine);
+      // }
       
       connectionsGroup.appendChild(path);
     }
@@ -447,7 +463,7 @@
         
         // Create image element for type icon
         const image = document.createElementNS("http://www.w3.org/2000/svg", "image");
-        image.setAttribute("href", `icons/${type.toLowerCase()}.png`);
+        image.setAttribute("href", `transparent_icons/${type.toLowerCase()}.png`);
         image.setAttribute("width", "60");
         image.setAttribute("height", "60");
         image.setAttribute("x", "-30");
@@ -472,6 +488,7 @@
           }
           
           updateConnections();
+          updateIcons();
         });
         
         // Tooltip on hover
@@ -496,6 +513,8 @@
       // Reset all connections (remove highlighting)
       document.querySelectorAll(".connections path").forEach(path => {
         path.classList.remove("highlighted");
+        path.classList.remove("adv");
+        path.classList.remove("disadv");
       });
       
       // Reset all marker lines
@@ -512,12 +531,56 @@
         document.querySelectorAll(`.connections path[data-source="${type}"], .connections path[data-target="${type}"]`).forEach(path => {
           path.classList.add("highlighted");
         });
+
+        document.querySelectorAll(`.connections path[data-source="${type}"]`).forEach(path => {
+          path.classList.add("adv");
+          path.classList.remove("disadv");
+        })
+
+        document.querySelectorAll(`.connections path[data-target="${type}"]`).forEach(path => {
+          path.classList.add("disadv");
+          path.classList.add("adv");
+        })
         
         // Find all marker lines where this type is involved and make them visible
         document.querySelectorAll(`.marker-line[data-source="${type}"], .marker-line[data-target="${type}"]`).forEach(line => {
           line.classList.add("highlighted");
         });
       });
+    }
+
+    function updateIcons() {
+
+      visibleTypes.clear();
+
+      if (selectedTypes.size === 0){
+        document.querySelectorAll(".type-icon").forEach(icon => {
+          icon.classList.remove("fade");
+        });
+        return;
+      }
+
+      selectedTypes.forEach(type => {
+        visibleTypes.add(type);
+        document.querySelectorAll(`.connections path[data-source="${type}"], .connections path[data-target="${type}"]`).forEach(path => {
+          visibleTypes.add(path.getAttribute("data-source"));
+          visibleTypes.add(path.getAttribute("data-target"));
+        });
+      })
+
+      types.forEach(type => {
+        if (!visibleTypes.has(type)) {
+          document.querySelectorAll(`.type-icon[data-type="${type}"]`).forEach(icon => {
+            icon.classList.add("fade");
+          })
+        }
+        else {
+          document.querySelectorAll(`.type-icon[data-type="${type}"]`).forEach(icon => {
+            icon.classList.remove("fade");
+          })
+        }
+      })
+        
     }
 
     // Reset button functionality
@@ -527,6 +590,7 @@
       });
       selectedTypes.clear();
       updateConnections();
+      updateIcons();
     });
 
     // Initialize the wheel
